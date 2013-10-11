@@ -1,0 +1,103 @@
+#!/opt/local/bin/perl5.8.7
+
+use warnings;
+use strict;
+use lib 'lib';
+use lib 'conf';
+use lib 'templates';
+use nuschedUtil qw(getPictureURL generateErrorPage exceptionToMessage);
+use Error qw(:try);
+use uidevErrors;
+use Template;
+use JSON;
+
+print "Content-type: text/html\n\n";
+
+try {  
+    use nuschedBase;
+    nuschedBase->new('Availability');
+    our $handle;
+    our $department;
+    our $departments;
+    our $perms;
+    our $cgi;
+    our $db;
+
+    throw FeatureException unless $perms->{'use_sched'};
+    throw AccessDeniedException if ($perms->{'view_only'});
+    throw AccessDeniedException unless ($perms->{'can_work'});
+	
+	my $employee = $db->getEmployee($handle, $department, {all => '1'});
+  
+	my @grid;
+	for ( my $block = 0; $block < 48; $block++) {
+        for ( my $day = 0; $day < 7; $day++) {
+            $grid[$block][$day] = 0;
+        } 
+    }
+
+    # Get Open Hours for department
+    my $openHours = $db->getDeptOpenHours($department);
+	if (scalar(@$openHours) == 0 ) {
+        throw InvalidDeptException 'No open hours have been defined for ' . $department . '.';
+	}
+	
+	my $first_row = 5000;
+	my $last_row = 0;
+	my $numAvail = 0;
+	
+	foreach my $openblock (@{ $openHours }) {
+	        $grid[$openblock->[1]][$openblock->[0]] = 1;
+	        if ($first_row > $openblock->[1]) {
+	            $first_row = $openblock->[1];
+	        }
+	        if ($last_row < $openblock->[1]) {
+	            $last_row = $openblock->[1];
+	        }
+	}
+
+	# Get employee availability for department
+	my @avail;
+	foreach my $availblock (@{ $db->getAvailability($handle, $department) }) {
+	    push(@avail, { 'day' => $availblock->[0], 'block' => $availblock->[1] });
+	    if ($grid[$availblock->[1]][$availblock->[0]] == 1 ) {
+	        $grid[$availblock->[1]][$availblock->[0]] = 2;        
+	    }
+	    $numAvail++;
+	}
+
+    $db->_disconnect;
+
+	my $vars = {
+	    'departments'    => $departments,
+	    'employee'       => $employee,
+	    'jsemployee'     => objToJson($employee),
+	    'grid'           => \@grid,
+	    'jsavailability' => objToJson(\@grid),
+	    'numavail'       => $numAvail,
+	    'row'            => $first_row,
+	    'lrow'           => $last_row,
+	    'perms'          => $perms,
+	    'dept_requested' => $department,
+	    'pictureURL'     => getPictureURL($employee->{'EMP_HANDLE'})
+	};
+
+    my $template = Template->new();
+
+	$template->process('templates/availability.html', $vars)
+	 	or die $template->error();
+
+} catch UidevException with {
+    my $E = shift;
+    my @notices = exceptionToMessage($E);
+    my $vars = {
+        'handle' => $handle,
+        'departments' => $departments,
+        'dept_requested' => $department,
+        'perms' => $perms,
+        'notices' => \@notices,
+    };
+    $db->_disconnect if ($db);
+    generateErrorPage($vars);
+    exit;
+};
