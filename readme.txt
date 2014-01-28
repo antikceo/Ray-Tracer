@@ -1,13 +1,3 @@
-I'm not entirely sure how your script processes values because it outputs:
-
-Correct in this example (0 1 2 3 4 5 6 7 8) 0 
-Error in this example (1 0 2 3 4 5 6 7 8) Corret Length: 1 Your Length: 1 1 
-Error in this example (1 2 0 3 4 5 6 7 8) Corret Length: 2 Your Length: 2 2 
-total: 3 correct: 1 score: 1/3 
-NIL
-
- But when I put in the actual values myself like so:
-	 (8-puzzle '(1 0 2 3 4 5 6 7 8) 'manhattan) I get the correct output.
 
 Note: Some initial board states take a long time to search, so if it looks like nothing is happening, it's just searching. If it takes too long, just reload, maybe the random case is a really hard case.
 
@@ -29,7 +19,11 @@ Misplaced checks each tile in the state and if the position does not match the g
 Concept for extra credit gotten from web.mit.edu/6.034/wwwbob/EightPuzzle.pdf
 
 The idea is to create a tile reversal penalty will add one penalty move for a direct  reversal of tiles i.e. the board:
-213804765would have a reversal penalty of 2, because 2 is reversed with 1 and 1 is reversed with two. Reversal penalties will always come in pairs.
+
+213
+804
+765
+would have a reversal penalty of 2, because 2 is reversed with 1 and 1 is reversed with two. Reversal penalties will always come in pairs.
 
 Reversed tiles are much more difficult to deal with (they must go around each other), for every two reversed tiles, this will require a minimum of 2 moves.
 
